@@ -24,7 +24,7 @@ function preload() {
   this.load.image("player", "player.png");
   this.load.image("atack1", "atack1.png");
   this.load.image("enemy", "enemy.png");
-  this.load.image("background", "background.png");
+  this.load.image("background", "background7.png");
 }
 
 function criarAtaqueAutomatico(scene) {
@@ -42,7 +42,7 @@ function criarAtaqueAutomatico(scene) {
       if (enemies.getLength() === 0) return;
 
       const attack = attacks.create(player.x, player.y, "atack1");
-      attack.setScale(0.1);
+      attack.setScale(0.2);
 
       // Encontra o inimigo mais próximo
       let nearestEnemy = null;
@@ -88,7 +88,7 @@ function create() {
 
   // Player
   player = this.physics.add.sprite(300, 300, "player");
-  player.setScale(0.2);
+  player.setScale(0.4);
   player.setCollideWorldBounds(true);
   player.body.setSize(450, 350); // largura, altura da hitbox
   player.body.setOffset(30, 90)  //obj inicial 
@@ -128,7 +128,9 @@ function create() {
       } while (Phaser.Math.Distance.Between(x, y, player.x, player.y) < safeDistance);
   
       const enemy = enemies.create(x, y, "enemy");
-      enemy.setScale(0.15);
+      enemy.setScale(0.5); //0.2
+      enemy.body.setSize(450, 200); // largura, altura da hitbox
+      enemy.body.setOffset(30, 140) 
       enemy.setCollideWorldBounds(true);
       enemy.health = 1;
     }
