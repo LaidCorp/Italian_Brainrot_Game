@@ -14,7 +14,7 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
-
+const safeDistance = 1000;
 let player, cursors, enemies, attacks, background;
 let lastDirection = "right";
 const worldWidth = 3000;
@@ -26,6 +26,57 @@ function preload() {
   this.load.image("enemy", "enemy.png");
   this.load.image("background", "background.png");
 }
+
+function criarAtaqueAutomatico(scene) {
+  const delay = Math.max(200, 1000 - player.level * 100); // diminui com o nível, mas nunca menor que 200ms
+
+  // remove evento anterior se existir
+  if (scene.attackTimer) {
+    scene.attackTimer.remove(false);
+  }
+
+  scene.attackTimer = scene.time.addEvent({
+    delay: delay,
+    loop: true,
+    callback: () => {
+      if (enemies.getLength() === 0) return;
+
+      const attack = attacks.create(player.x, player.y, "atack1");
+      attack.setScale(0.1);
+
+      // Encontra o inimigo mais próximo
+      let nearestEnemy = null;
+      let shortestDistance = Infinity;
+
+      enemies.children.iterate(enemy => {
+        const dist = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
+        if (dist < shortestDistance) {
+          shortestDistance = dist;
+          nearestEnemy = enemy;
+        }
+      });
+
+      if (nearestEnemy) {
+        const dx = nearestEnemy.x - player.x;
+        const dy = nearestEnemy.y - player.y;
+        const angle = Math.atan2(dy, dx);
+
+        const speed = 300;
+        attack.body.velocity.x = Math.cos(angle) * speed;
+        attack.body.velocity.y = Math.sin(angle) * speed;
+
+        attack.setRotation(angle + Phaser.Math.DegToRad(180));
+
+        attack.body.setSize(150, 150);
+        attack.body.setOffset(100, 100);
+      }
+
+      scene.time.delayedCall(1500, () => attack.destroy());
+    }
+  });
+}
+
+
 
 function create() {
   // Definindo limites do mundo
@@ -62,54 +113,28 @@ function create() {
 
   // Spawna inimigos em qualquer ponto do mapa
   this.time.addEvent({
-    delay: 1000,
+    delay: 200,
     loop: true,
     callback: () => {
-      const enemy = enemies.create(
-        Phaser.Math.Between(0, worldWidth),
-        Phaser.Math.Between(0, worldHeight),
-        "enemy"
-      );
+      let x, y;
+      let attempts = 0;
+  
+      do {
+        x = Phaser.Math.Between(0, worldWidth);
+        y = Phaser.Math.Between(0, worldHeight);
+        attempts++;
+        // Evita loop infinito (só tenta no máximo 20x)
+        if (attempts > 20) break;
+      } while (Phaser.Math.Distance.Between(x, y, player.x, player.y) < safeDistance);
+  
+      const enemy = enemies.create(x, y, "enemy");
       enemy.setScale(0.15);
       enemy.setCollideWorldBounds(true);
       enemy.health = 1;
     }
   });
 
-
-  this.time.addEvent({
-    delay: 1000,
-    loop: true,
-    callback: () => {
-      const attack = attacks.create(player.x, player.y, "atack1");
-      attack.setScale(0.1);
-
-      const speed = 300;
-
-      switch (lastDirection) {
-        case "down":
-          attack.body.velocity.y = speed;
-          attack.setRotation(Phaser.Math.DegToRad(-90));
-          break;
-        case "up":
-          attack.body.velocity.y = -speed;
-          attack.setRotation(Phaser.Math.DegToRad(90));
-          break;
-        case "right":
-          attack.body.velocity.x = speed;
-          attack.setRotation(Phaser.Math.DegToRad(180));
-          break;
-        case "left":
-        default:
-          attack.body.velocity.x = -speed;
-          attack.setRotation(Phaser.Math.DegToRad(0));
-          break;
-      }
-
-
-      this.time.delayedCall(1500, () => attack.destroy());
-    }
-  });
+  criarAtaqueAutomatico(this);
 
   // Ataque acerta inimigo
   this.physics.add.overlap(attacks, enemies, (atk, enemy) => {
@@ -123,6 +148,7 @@ function create() {
         player.xp = 0;
         player.level++;
         console.log("Subiu de nível!");
+        criarAtaqueAutomatico(this);
       }
     } else {
       enemy.setTint(0xffaaaa);
